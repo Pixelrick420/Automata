@@ -8,7 +8,7 @@ app = FastAPI(title="Regex to NFA Converter", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # frontend URLs
+    allow_origins=["*"],  # frontend URLs
     allow_credentials=True,
     allow_methods=["*"],  # allow POST, GET, OPTIONS etc.
     allow_headers=["*"],

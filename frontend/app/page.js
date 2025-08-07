@@ -66,7 +66,7 @@ export default function Home() {
     setError("");
 
     // Use actual API call
-    fetch("http://localhost:8000/automaton", {
+    fetch("https://automata-j8vc.onrender.com/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ regex }),
