@@ -36,13 +36,9 @@ def build_automaton(req: RegexRequest):
         raise HTTPException(status_code=422, detail="Regex cannot be empty")
     
     try:
-        # Convert regex to postfix notation
         postfix = convert(regex)
-        
-        # Generate NFA from postfix
         nfa = generate(postfix)
         
-        # Format transitions properly - ensure all states are included
         formatted_transitions = {}
         for state in nfa.states:
             state_id = str(state.id)

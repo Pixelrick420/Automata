@@ -44,7 +44,7 @@ def addConcatenation(regex: str) -> str:
                 
             should_concatenate = False
             
-            if (char not in OPERATORS or char == ')' or char == '*'):
+            if (char not in OPERATORS or char == ')'):
                 if next_char not in OPERATORS or next_char == '(':
                     should_concatenate = True
             
@@ -119,17 +119,17 @@ def generate(postfix: List[str], alphabet: Set[str] = {'0', '1'}) -> Automata:
 
     stack = []
 
-    for token in postfix:
+    for i, token in enumerate(postfix):        
         if token not in OPERATORS: 
             start, end = newState(), newState()
             transitions = {start: {token: {end}}, end: {}}
             stack.append((start, end, [start, end], transitions))
 
         elif token == '.': 
-            startA, endA, statesA, transitionsA = stack.pop()
-            startB, endB, statesB, transitionsB = stack.pop()
+            startA, endA, statesA, transitionsA = stack.pop() 
+            startB, endB, statesB, transitionsB = stack.pop() 
             transitionsB.setdefault(endB, {}).setdefault('', set()).add(startA)
-            transitions = merge(transitionsA, transitionsB)
+            transitions = merge(transitionsB, transitionsA) 
             stack.append((startB, endA, statesB + statesA, transitions))
 
         elif token == '+':  
@@ -140,6 +140,7 @@ def generate(postfix: List[str], alphabet: Set[str] = {'0', '1'}) -> Automata:
             transitions[start] = {'': {startA, startB}}
             transitions.setdefault(endA, {}).setdefault('', set()).add(end)
             transitions.setdefault(endB, {}).setdefault('', set()).add(end)
+            transitions.setdefault(end, {})  
             stack.append((start, end, [start, end] + statesA + statesB, transitions))
 
         elif token == '*':  
@@ -148,9 +149,21 @@ def generate(postfix: List[str], alphabet: Set[str] = {'0', '1'}) -> Automata:
             transitions = merge(transitionsA)
             transitions[start] = {'': {startA, end}}
             transitions.setdefault(endA, {}).setdefault('', set()).update({startA, end})
+            transitions.setdefault(end, {})  
             stack.append((start, end, [start, end] + statesA, transitions))
 
+    while len(stack) > 1:
+        startA, endA, statesA, transitionsA = stack.pop()  
+        startB, endB, statesB, transitionsB = stack.pop()  
+        transitionsB.setdefault(endB, {}).setdefault('', set()).add(startA)
+        transitions = merge(transitionsB, transitionsA)
+        stack.append((startB, endA, statesB + statesA, transitions))
+
     start, end, states, transitions = stack.pop()
+
+    for state in states:
+        transitions.setdefault(state, {})
+    
     return Automata(states, transitions, end, start, alphabet)
 
 
@@ -163,7 +176,8 @@ if __name__ == "__main__":
         "(a+b)c",       
         "a*b",          
         "abc",          
-        "1.0*"          
+        "1.0*",
+        "{{7*       7}}"  # Added your test case
     ]
     
     for regex in test_cases:
@@ -176,6 +190,6 @@ if __name__ == "__main__":
         nfa = generate(postfix)
         print(f"Initial: {nfa.initialState}, Final: {nfa.finalState}")
         print("Transitions:")
-        for s, trans in nfa.transitions.items():
-            if trans:  # Only print non-empty transitions
-                print(f"  {s}: {trans}")
+        for s in sorted(nfa.transitions.keys()):
+            trans = nfa.transitions[s]
+            print(f"  {s}: {trans}")
