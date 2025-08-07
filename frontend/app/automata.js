@@ -108,6 +108,7 @@ export default function AutomataVisualizer({
   };
 
   const handleTouchStart = (e) => {
+    e.preventDefault();
     if (e.target.closest('.state-group') || e.target.closest('.transition-group')) return;
     if (e.touches.length !== 1) return;
     setIsDragging(true);
@@ -115,6 +116,7 @@ export default function AutomataVisualizer({
   };
 
   const handleTouchMove = (e) => {
+    e.preventDefault();
     if (!isDragging || e.touches.length !== 1) return;
     const deltaX = e.touches[0].clientX - lastPanPoint.x;
     const deltaY = e.touches[0].clientY - lastPanPoint.y;
@@ -122,7 +124,8 @@ export default function AutomataVisualizer({
     setLastPanPoint({ x: e.touches[0].clientX, y: e.touches[0].clientY });
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e) => {
+    e.preventDefault();
     setIsDragging(false);
   };
 
@@ -131,8 +134,10 @@ export default function AutomataVisualizer({
     if (!svg) return;
     
     const rect = svg.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x) / zoom;
-    const y = (e.clientY - rect.top - pan.y) / zoom;
+    const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+    const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+    const x = (clientX - rect.left - pan.x) / zoom;
+    const y = (clientY - rect.top - pan.y) / zoom;
 
     onPositionChange(state, { x, y });
   };
@@ -176,7 +181,8 @@ export default function AutomataVisualizer({
           overflow: 'hidden',
           cursor: isDragging ? 'grabbing' : 'grab',
           width: '100%',
-          height: '100%'
+          height: '100%',
+          touchAction: 'none'
         }}
         onWheel={(e) => e.preventDefault()}
       >
@@ -316,7 +322,22 @@ export default function AutomataVisualizer({
                     window.addEventListener("mousemove", move);
                     window.addEventListener("mouseup", up);
                   }}
-                  style={{ cursor: 'grab' }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const move = (ev) => {
+                      ev.preventDefault();
+                      handleDrag(ev, id);
+                    };
+                    const up = (ev) => {
+                      ev.preventDefault();
+                      window.removeEventListener("touchmove", move);
+                      window.removeEventListener("touchend", up);
+                    };
+                    window.addEventListener("touchmove", move, { passive: false });
+                    window.addEventListener("touchend", up);
+                  }}
+                  style={{ cursor: 'grab', touchAction: 'none' }}
                 >
                   <circle cx={pos.x} cy={pos.y} r={radius} fill={fill} stroke={strokeColor} strokeWidth="2" />
                   {isFinal && (

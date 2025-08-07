@@ -274,7 +274,7 @@ export default function Home() {
           flex-direction: column;
           margin-top: 5vh;
           gap: 16px;
-          animation: slideInLeft 0.8s ease-out 0.4s both;
+          animation: fadeInDown 1s ease-out 0.4s both;
         }
 
         .automata-panel {
