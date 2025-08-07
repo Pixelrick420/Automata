@@ -1,3 +1,5 @@
+// app/components/AutomataVisualizer.jsx
+
 "use client";
 import { useState, useRef, useEffect } from "react";
 
@@ -25,10 +27,10 @@ export default function AutomataVisualizer({
   const [hasAutoZoomed, setHasAutoZoomed] = useState(false);
   const svgRef = useRef(null);
 
-  // Reset auto-zoom flag when automaton changes (new automata loaded)
   useEffect(() => {
     setHasAutoZoomed(false);
   }, [automaton]);
+
   useEffect(() => {
     if (!automaton || !positions || !svgRef.current || Object.keys(positions).length === 0 || hasAutoZoomed) {
       return;
@@ -39,12 +41,10 @@ export default function AutomataVisualizer({
     const containerWidth = rect.width;
     const containerHeight = rect.height;
 
-    // Get all position coordinates
     const coords = Object.values(positions);
     if (coords.length === 0) return;
 
-    // Calculate bounding box of all states (with some padding for state radius)
-    const padding = 100; // Extra padding around states
+    const padding = 100;
     const stateRadius = 45;
     const minX = Math.min(...coords.map(p => p.x)) - stateRadius - padding;
     const maxX = Math.max(...coords.map(p => p.x)) + stateRadius + padding;
@@ -54,18 +54,14 @@ export default function AutomataVisualizer({
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
 
-    // Calculate required zoom to fit content
     const scaleX = containerWidth / contentWidth;
     const scaleY = containerHeight / contentHeight;
-    const optimalZoom = Math.min(scaleX, scaleY, 1); // Don't zoom in beyond 1x
+    const optimalZoom = Math.min(scaleX, scaleY, 1);
 
-    // Only auto-zoom if content doesn't fit
-    const currentContentFitsX = (minX >= 0 && maxX <= containerWidth);
-    const currentContentFitsY = (minY >= 0 && maxY <= containerHeight);
-    const contentFits = currentContentFitsX && currentContentFitsY;
+    const contentFits = (minX >= 0 && maxX <= containerWidth) &&
+                        (minY >= 0 && maxY <= containerHeight);
     
     if (!contentFits) {
-      // Center the content
       const centerX = (containerWidth - contentWidth * optimalZoom) / 2 - minX * optimalZoom;
       const centerY = (containerHeight - contentHeight * optimalZoom) / 2 - minY * optimalZoom;
 
@@ -73,11 +69,9 @@ export default function AutomataVisualizer({
       setPan({ x: centerX, y: centerY });
     }
 
-    // Mark that we've performed the initial auto-zoom
     setHasAutoZoomed(true);
   }, [automaton, positions, hasAutoZoomed]);
 
-  // Handle zoom with mouse wheel
   const handleWheel = (e) => {
     e.preventDefault();
     const rect = svgRef.current.getBoundingClientRect();
@@ -87,7 +81,6 @@ export default function AutomataVisualizer({
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
     
-    // Zoom towards mouse position
     const zoomFactor = newZoom / zoom;
     const newPanX = mouseX - (mouseX - pan.x) * zoomFactor;
     const newPanY = mouseY - (mouseY - pan.y) * zoomFactor;
@@ -96,14 +89,12 @@ export default function AutomataVisualizer({
     setPan({ x: newPanX, y: newPanY });
   };
 
-  // Handle pan start
   const handlePanStart = (e) => {
     if (e.target.closest('.state-group') || e.target.closest('.transition-group')) return;
     setIsDragging(true);
     setLastPanPoint({ x: e.clientX, y: e.clientY });
   };
 
-  // Handle pan move
   const handlePanMove = (e) => {
     if (!isDragging) return;
     const deltaX = e.clientX - lastPanPoint.x;
@@ -112,12 +103,29 @@ export default function AutomataVisualizer({
     setLastPanPoint({ x: e.clientX, y: e.clientY });
   };
 
-  // Handle pan end
   const handlePanEnd = () => {
     setIsDragging(false);
   };
 
-  // Drag handler with smooth movement
+  const handleTouchStart = (e) => {
+    if (e.target.closest('.state-group') || e.target.closest('.transition-group')) return;
+    if (e.touches.length !== 1) return;
+    setIsDragging(true);
+    setLastPanPoint({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const deltaX = e.touches[0].clientX - lastPanPoint.x;
+    const deltaY = e.touches[0].clientY - lastPanPoint.y;
+    setPan(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+    setLastPanPoint({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
   const handleDrag = (e, state) => {
     const svg = e.target.closest('svg');
     if (!svg) return;
@@ -129,7 +137,6 @@ export default function AutomataVisualizer({
     onPositionChange(state, { x, y });
   };
 
-  // Group transitions between same states
   const groupTransitions = (transitions) => {
     const grouped = {};
     
@@ -157,14 +164,11 @@ export default function AutomataVisualizer({
 
     const radius = 45;
     const groupedTransitions = groupTransitions(automaton.transitions);
-    
-    // Simple approach: just check if there's a reverse transition for each transition
-    const hasReverse = (from, to) => {
-      return groupedTransitions.some(t => t.from === to && t.to === from);
-    };
+    const hasReverse = (from, to) =>
+      groupedTransitions.some(t => t.from === to && t.to === from);
 
     return (
-      <div 
+      <div
         style={{
           background: COLORS.WHITE,
           borderRadius: '8px',
@@ -186,9 +190,12 @@ export default function AutomataVisualizer({
           onMouseMove={handlePanMove}
           onMouseUp={handlePanEnd}
           onMouseLeave={handlePanEnd}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
         >
           <defs>
-            {/* Simple arrowhead */}
             <marker
               id="arrowhead"
               markerWidth="12"
@@ -198,132 +205,83 @@ export default function AutomataVisualizer({
               orient="auto"
               markerUnits="strokeWidth"
             >
-              <polygon 
-                points="0 0, 12 5, 0 10" 
-                fill={COLORS.BLACK}
-              />
+              <polygon points="0 0, 12 5, 0 10" fill={COLORS.BLACK} />
             </marker>
           </defs>
 
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-            {/* Draw each transition */}
-            {groupedTransitions.map((transition, index) => {
-              const { from, to, symbols } = transition;
+            {/* Transitions */}
+            {groupedTransitions.map(({ from, to, symbols }, index) => {
               const fromPos = positions[from];
               const toPos = positions[to];
-              
               if (!fromPos || !toPos) return null;
 
-              // Self-loop
+              const symbolText = symbols.map(s => s === "" ? "ε" : s).join(", ");
+              
               if (from === to) {
-                const loopRadius = 35;
                 const angle = -Math.PI/2;
+                const loopRadius = 35;
                 const startX = fromPos.x + Math.cos(angle) * radius;
                 const startY = fromPos.y + Math.sin(angle) * radius;
                 const endX = fromPos.x + Math.cos(angle + 0.1) * radius;
                 const endY = fromPos.y + Math.sin(angle + 0.1) * radius;
-                
                 const path = `M${startX} ${startY} A${loopRadius} ${loopRadius} 0 1 1 ${endX} ${endY}`;
-                const labelX = fromPos.x + Math.cos(angle + Math.PI/8) * (radius + loopRadius + 20);
-                const labelY = fromPos.y + Math.sin(angle + Math.PI/8) * (radius + loopRadius + 20);
-
-                const symbolText = symbols.map(s => s === "" ? "ε" : s).join(", ");
+                const labelX = fromPos.x;
+                const labelY = fromPos.y - radius - loopRadius - 10;
 
                 return (
                   <g key={`${from}-${to}-${index}`} className="transition-group">
-                    <path
-                      d={path}
-                      fill="none"
-                      stroke={COLORS.BLACK}
-                      strokeWidth="2"
-                      markerEnd="url(#arrowhead)"
-                    />
-                    <text
-                      x={labelX}
-                      y={labelY}
-                      fontSize="14"
-                      fontWeight="900"
-                      fill={COLORS.BLACK}
-                      textAnchor="middle"
-                    >
+                    <path d={path} fill="none" stroke={COLORS.BLACK} strokeWidth="2" markerEnd="url(#arrowhead)" />
+                    <text x={labelX} y={labelY} fontSize="14" fontWeight="900" fill={COLORS.BLACK} textAnchor="middle">
                       {symbolText}
                     </text>
                   </g>
                 );
               }
 
-              // Calculate line between states
               const dx = toPos.x - fromPos.x;
               const dy = toPos.y - fromPos.y;
               const distance = Math.sqrt(dx * dx + dy * dy);
               const unitX = dx / distance;
               const unitY = dy / distance;
-              
               const startX = fromPos.x + unitX * radius;
               const startY = fromPos.y + unitY * radius;
               const endX = toPos.x - unitX * radius;
               const endY = toPos.y - unitY * radius;
 
-              // SIMPLE FIX: If there's a reverse transition, curve this one
               let path, labelX, labelY;
               if (hasReverse(from, to)) {
-                // The KEY insight: we need to curve based on the SAME reference direction
-                // Always calculate as if going from smaller to larger state ID
                 const refFrom = Math.min(parseInt(from), parseInt(to));
                 const refTo = Math.max(parseInt(from), parseInt(to));
-                const isForwardDirection = (parseInt(from) === refFrom);
-                
-                // Use consistent reference positions
-                const refFromPos = positions[refFrom];
-                const refToPos = positions[refTo];
-                const refDx = refToPos.x - refFromPos.x;
-                const refDy = refToPos.y - refFromPos.y;
-                const refDistance = Math.sqrt(refDx * refDx + refDy * refDy);
-                const refUnitX = refDx / refDistance;
-                const refUnitY = refDy / refDistance;
-                const refPerpX = -refUnitY; // Always same perpendicular direction
-                const refPerpY = refUnitX;
-                
-                // Curve in opposite directions
-                const curvature = isForwardDirection ? 80 : -80;
+                const isForward = parseInt(from) === refFrom;
+
+                const refDx = positions[refTo].x - positions[refFrom].x;
+                const refDy = positions[refTo].y - positions[refFrom].y;
+                const refDist = Math.sqrt(refDx ** 2 + refDy ** 2);
+                const refUnitX = refDx / refDist;
+                const refUnitY = refDy / refDist;
+                const perpX = -refUnitY;
+                const perpY = refUnitX;
+
+                const curvature = isForward ? 80 : -80;
                 const midX = (startX + endX) / 2;
                 const midY = (startY + endY) / 2;
-                const controlX = midX + refPerpX * curvature;
-                const controlY = midY + refPerpY * curvature;
-                
+                const controlX = midX + perpX * curvature;
+                const controlY = midY + perpY * curvature;
+
                 path = `M${startX} ${startY} Q${controlX} ${controlY} ${endX} ${endY}`;
                 labelX = controlX;
                 labelY = controlY + (curvature > 0 ? -25 : 25);
               } else {
-                // Straight line
                 path = `M${startX} ${startY} L${endX} ${endY}`;
                 labelX = (startX + endX) / 2;
                 labelY = (startY + endY) / 2 - 15;
               }
 
-              const symbolText = symbols.map(s => s === "" ? "ε" : s).join(", ");
-
               return (
                 <g key={`${from}-${to}-${index}`} className="transition-group">
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke={COLORS.BLACK}
-                    strokeWidth="2"
-                    markerEnd="url(#arrowhead)"
-                  />
-                  <text
-                    x={labelX}
-                    y={labelY}
-                    fontSize="24"
-                    fontWeight="900"
-                    fill={COLORS.BLACK}
-                    textAnchor="middle"
-                    style={{
-                      pointerEvents: 'none',
-                      fontFamily: 'Monaco, Consolas, monospace'
-                    }}
-                  >
+                  <path d={path} fill="none" stroke={COLORS.BLACK} strokeWidth="2" markerEnd="url(#arrowhead)" />
+                  <text x={labelX} y={labelY} fontSize="24" fontWeight="900" fill={COLORS.BLACK} textAnchor="middle" style={{ pointerEvents: 'none', fontFamily: 'Monaco, Consolas, monospace' }}>
                     {symbolText}
                   </text>
                 </g>
@@ -340,16 +298,8 @@ export default function AutomataVisualizer({
 
               let fill = COLORS.WHITE;
               let strokeColor = COLORS.BLACK;
-              if (isInitial && isFinal) {
-                fill = COLORS.ACCENT;
-                strokeColor = COLORS.BLACK;
-              } else if (isInitial) {
-                fill = COLORS.ACCENT;
-                strokeColor = COLORS.BLACK;
-              } else if (isFinal) {
-                fill = COLORS.FINAL;
-                strokeColor = COLORS.BLACK;
-              }
+              if (isInitial) fill = COLORS.ACCENT;
+              if (isFinal) fill = COLORS.FINAL;
 
               return (
                 <g
@@ -368,50 +318,15 @@ export default function AutomataVisualizer({
                   }}
                   style={{ cursor: 'grab' }}
                 >
-                  <circle
-                    cx={pos.x}
-                    cy={pos.y}
-                    r={radius}
-                    fill={fill}
-                    stroke={strokeColor}
-                    strokeWidth="2"
-                  />
+                  <circle cx={pos.x} cy={pos.y} r={radius} fill={fill} stroke={strokeColor} strokeWidth="2" />
                   {isFinal && (
-                    <circle
-                      cx={pos.x}
-                      cy={pos.y}
-                      r={radius - 8}
-                      fill="none"
-                      stroke={strokeColor}
-                      strokeWidth="2"
-                    />
+                    <circle cx={pos.x} cy={pos.y} r={radius - 8} fill="none" stroke={strokeColor} strokeWidth="2" />
                   )}
-                  <text
-                    x={pos.x}
-                    y={pos.y + 6}
-                    textAnchor="middle"
-                    fontSize="24"
-                    fontWeight="900"
-                    fill={isFinal || isInitial ? COLORS.WHITE : COLORS.BLACK}
-                    style={{
-                      pointerEvents: 'none',
-                      fontFamily: 'Monaco, Consolas, monospace'
-                    }}
-                  >
+                  <text x={pos.x} y={pos.y + 6} textAnchor="middle" fontSize="24" fontWeight="900" fill={isFinal || isInitial ? COLORS.WHITE : COLORS.BLACK} style={{ pointerEvents: 'none', fontFamily: 'Monaco, Consolas, monospace' }}>
                     q{id}
                   </text>
                   {isInitial && (
-                    <>
-                      <line
-                        x1={pos.x - 90}
-                        y1={pos.y}
-                        x2={pos.x - radius - 5}
-                        y2={pos.y}
-                        stroke={COLORS.BLACK}
-                        strokeWidth="2"
-                        markerEnd="url(#arrowhead)"
-                      />
-                    </>
+                    <line x1={pos.x - 90} y1={pos.y} x2={pos.x - radius - 5} y2={pos.y} stroke={COLORS.BLACK} strokeWidth="2" markerEnd="url(#arrowhead)" />
                   )}
                 </g>
               );
@@ -425,25 +340,24 @@ export default function AutomataVisualizer({
   return (
     <>
       {renderSVG()}
-      
-      {/* Floating Error Popup */}
       {error && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          maxWidth: '300px',
-          padding: '16px',
-          backgroundColor: '#dc2626',
-          borderRadius: '8px',
-          color: COLORS.WHITE,
-          fontWeight: '500',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-          cursor: 'pointer'
-        }}
-        onClick={onErrorDismiss}
-        title="Click to dismiss"
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            maxWidth: '300px',
+            padding: '16px',
+            backgroundColor: '#dc2626',
+            borderRadius: '8px',
+            color: COLORS.WHITE,
+            fontWeight: '500',
+            zIndex: 1000,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            cursor: 'pointer'
+          }}
+          onClick={onErrorDismiss}
+          title="Click to dismiss"
         >
           {error}
         </div>
