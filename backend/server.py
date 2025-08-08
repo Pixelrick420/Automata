@@ -8,7 +8,7 @@ app = FastAPI(title="Regex to NFA Converter", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://regex-automata.vercel.app"],  # frontend URLs
+    allow_origins=["https://regex-automata.vercel.app", "http://localhost:3000"],  # frontend URLs
     allow_credentials=True,
     allow_methods=["*"],  # allow POST, GET, OPTIONS etc.
     allow_headers=["*"],

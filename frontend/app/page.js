@@ -101,7 +101,7 @@ export default function Home() {
         <div style={{ textAlign: 'center' }}>
           <h1
             style={{
-              fontSize: '2.5vw',
+              fontSize: `2em`,
               fontWeight: '600',
               color: '#f8fafc',
               marginBottom: '1vh',

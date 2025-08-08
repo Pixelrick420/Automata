@@ -72,22 +72,65 @@ export default function AutomataVisualizer({
     setHasAutoZoomed(true);
   }, [automaton, positions, hasAutoZoomed]);
 
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const rect = svgRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
-    
-    const zoomFactor = newZoom / zoom;
-    const newPanX = mouseX - (mouseX - pan.x) * zoomFactor;
-    const newPanY = mouseY - (mouseY - pan.y) * zoomFactor;
-    
-    setZoom(newZoom);
-    setPan({ x: newPanX, y: newPanY });
-  };
+  // Use useEffect to add event listeners with explicit passive: false
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
+      
+      const zoomFactor = newZoom / zoom;
+      const newPanX = mouseX - (mouseX - pan.x) * zoomFactor;
+      const newPanY = mouseY - (mouseY - pan.y) * zoomFactor;
+      
+      setZoom(newZoom);
+      setPan({ x: newPanX, y: newPanY });
+    };
+
+    const handleTouchStart = (e) => {
+      if (e.target.closest('.state-group') || e.target.closest('.transition-group')) return;
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      setIsDragging(true);
+      setLastPanPoint({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    };
+
+    const handleTouchMove = (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      e.preventDefault();
+      const deltaX = e.touches[0].clientX - lastPanPoint.x;
+      const deltaY = e.touches[0].clientY - lastPanPoint.y;
+      setPan(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+      setLastPanPoint({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    };
+
+    const handleTouchEnd = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+    };
+
+    // Add event listeners with explicit passive: false
+    svg.addEventListener('wheel', handleWheel, { passive: false });
+    svg.addEventListener('touchstart', handleTouchStart, { passive: false });
+    svg.addEventListener('touchmove', handleTouchMove, { passive: false });
+    svg.addEventListener('touchend', handleTouchEnd, { passive: false });
+    svg.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+    return () => {
+      svg.removeEventListener('wheel', handleWheel);
+      svg.removeEventListener('touchstart', handleTouchStart);
+      svg.removeEventListener('touchmove', handleTouchMove);
+      svg.removeEventListener('touchend', handleTouchEnd);
+      svg.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [zoom, pan.x, pan.y, isDragging, lastPanPoint.x, lastPanPoint.y]);
 
   const handlePanStart = (e) => {
     if (e.target.closest('.state-group') || e.target.closest('.transition-group')) return;
@@ -104,28 +147,6 @@ export default function AutomataVisualizer({
   };
 
   const handlePanEnd = () => {
-    setIsDragging(false);
-  };
-
-  const handleTouchStart = (e) => {
-    e.preventDefault();
-    if (e.target.closest('.state-group') || e.target.closest('.transition-group')) return;
-    if (e.touches.length !== 1) return;
-    setIsDragging(true);
-    setLastPanPoint({ x: e.touches[0].clientX, y: e.touches[0].clientY });
-  };
-
-  const handleTouchMove = (e) => {
-    e.preventDefault();
-    if (!isDragging || e.touches.length !== 1) return;
-    const deltaX = e.touches[0].clientX - lastPanPoint.x;
-    const deltaY = e.touches[0].clientY - lastPanPoint.y;
-    setPan(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
-    setLastPanPoint({ x: e.touches[0].clientX, y: e.touches[0].clientY });
-  };
-
-  const handleTouchEnd = (e) => {
-    e.preventDefault();
     setIsDragging(false);
   };
 
@@ -184,22 +205,16 @@ export default function AutomataVisualizer({
           height: '100%',
           touchAction: 'none'
         }}
-        onWheel={(e) => e.preventDefault()}
       >
         <svg
           ref={svgRef}
           width="100%"
           height="100%"
           style={{ backgroundColor: COLORS.WHITE }}
-          onWheel={handleWheel}
           onMouseDown={handlePanStart}
           onMouseMove={handlePanMove}
           onMouseUp={handlePanEnd}
           onMouseLeave={handlePanEnd}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
         >
           <defs>
             <marker

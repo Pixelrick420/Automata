@@ -67,7 +67,7 @@ def getPrecedence(operator: str) -> int:
 
 def convert(regex: str) -> List[str]:
     regex = addConcatenation(regex)
-    
+
     stack = []
     out = []
     for char in regex:
@@ -85,6 +85,9 @@ def convert(regex: str) -> List[str]:
                 out.append(stack.pop())
             stack.pop()  
 
+        elif char == '*':
+            out.append(char)
+
         else:
             while stack and stack[-1] != '(' and getPrecedence(char) <= getPrecedence(stack[-1]):
                 out.append(stack.pop())
@@ -96,10 +99,11 @@ def convert(regex: str) -> List[str]:
     return out
 
 
+
 def generate(postfix: List[str], alphabet: Set[str] = {'0', '1'}) -> Automata:
     if not postfix:
-        return Automata([0], {0:{}}, 0, 0, alphabet)
-    
+        return Automata([0], {0: {}}, 0, 0, alphabet)
+
     id_counter = [0]
 
     def newState():
@@ -109,7 +113,7 @@ def generate(postfix: List[str], alphabet: Set[str] = {'0', '1'}) -> Automata:
 
     def merge(*dicts):
         merged = {}
-        for d in dicts:
+        for idx, d in enumerate(dicts):
             for k, v in d.items():
                 if k not in merged:
                     merged[k] = {}
@@ -119,52 +123,70 @@ def generate(postfix: List[str], alphabet: Set[str] = {'0', '1'}) -> Automata:
 
     stack = []
 
-    for i, token in enumerate(postfix):        
-        if token not in OPERATORS: 
+    for i, token in enumerate(postfix):
+        if token not in OPERATORS:
             start, end = newState(), newState()
             transitions = {start: {token: {end}}, end: {}}
             stack.append((start, end, [start, end], transitions))
 
-        elif token == '.': 
-            startA, endA, statesA, transitionsA = stack.pop() 
-            startB, endB, statesB, transitionsB = stack.pop() 
-            transitionsB.setdefault(endB, {}).setdefault('', set()).add(startA)
-            transitions = merge(transitionsB, transitionsA) 
-            stack.append((startB, endA, statesB + statesA, transitions))
+        elif token == '.':
+            right = stack.pop()
+            left = stack.pop()
 
-        elif token == '+':  
-            startA, endA, statesA, transitionsA = stack.pop()
-            startB, endB, statesB, transitionsB = stack.pop()
+            startA, endA, statesA, transitionsA = right
+            startB, endB, statesB, transitionsB = left
+
+            transitionsB.setdefault(endB, {}).setdefault('', set()).add(startA)
+            transitions = merge(transitionsB, transitionsA)
+
+            combined_states = statesB + statesA
+            stack.append((startB, endA, combined_states, transitions))
+
+        elif token == '+':
+            right = stack.pop()
+            left = stack.pop()
+
+            startA, endA, statesA, transitionsA = right
+            startB, endB, statesB, transitionsB = left
             start, end = newState(), newState()
+
             transitions = merge(transitionsA, transitionsB)
-            transitions[start] = {'': {startA, startB}}
+            transitions[start] = {'': {startB, startA}}
             transitions.setdefault(endA, {}).setdefault('', set()).add(end)
             transitions.setdefault(endB, {}).setdefault('', set()).add(end)
-            transitions.setdefault(end, {})  
+            transitions.setdefault(end, {})
+
             stack.append((start, end, [start, end] + statesA + statesB, transitions))
 
-        elif token == '*':  
+        elif token == '*':
             startA, endA, statesA, transitionsA = stack.pop()
             start, end = newState(), newState()
+
             transitions = merge(transitionsA)
             transitions[start] = {'': {startA, end}}
             transitions.setdefault(endA, {}).setdefault('', set()).update({startA, end})
-            transitions.setdefault(end, {})  
+            transitions.setdefault(end, {})
+            
             stack.append((start, end, [start, end] + statesA, transitions))
 
     while len(stack) > 1:
-        startA, endA, statesA, transitionsA = stack.pop()  
-        startB, endB, statesB, transitionsB = stack.pop()  
+        right = stack.pop()
+        left = stack.pop()
+        startA, endA, statesA, transitionsA = right
+        startB, endB, statesB, transitionsB = left
+
         transitionsB.setdefault(endB, {}).setdefault('', set()).add(startA)
         transitions = merge(transitionsB, transitionsA)
-        stack.append((startB, endA, statesB + statesA, transitions))
+        combined_states = statesB + statesA
+        stack.append((startB, endA, combined_states, transitions))
 
     start, end, states, transitions = stack.pop()
 
     for state in states:
         transitions.setdefault(state, {})
-    
+
     return Automata(states, transitions, end, start, alphabet)
+
 
 
 if __name__ == "__main__":
@@ -177,7 +199,8 @@ if __name__ == "__main__":
         "a*b",          
         "abc",          
         "1.0*",
-        "{{7*       7}}"  # Added your test case
+        "{{7*       7}}",
+        "(2*(2+1)*)**"
     ]
     
     for regex in test_cases:
