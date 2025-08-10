@@ -60,7 +60,7 @@ export default function Home() {
     setIsLoading(true);
     setError("");
 
-    fetch("https://automata-j8vc.onrender.com/automaton", {
+    fetch("http://localhost:8000/automaton", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ regex }),

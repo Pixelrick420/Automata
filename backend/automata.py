@@ -44,8 +44,18 @@ def addConcatenation(regex: str) -> str:
                 
             should_concatenate = False
             
-            if (char not in OPERATORS or char == ')'):
+            # Concatenation rules:
+            # 1. After operand (not operator) and before operand or '('
+            # 2. After ')' and before operand or '('  
+            # 3. After '*' and before operand or '('
+            # NOT after '+' or '.' (binary operators)
+            # NOT before '*' (postfix operator)
+            
+            if char not in OPERATORS: 
                 if next_char not in OPERATORS or next_char == '(':
+                    should_concatenate = True
+            elif char == ')' or char == '*':  
+                if (next_char not in OPERATORS or next_char == '(') and next_char != '*':
                     should_concatenate = True
             
             if should_concatenate:
@@ -70,6 +80,7 @@ def convert(regex: str) -> List[str]:
 
     stack = []
     out = []
+    
     for char in regex:
         if char == ' ':
             continue
@@ -83,12 +94,13 @@ def convert(regex: str) -> List[str]:
         elif char == ')':
             while stack and stack[-1] != '(':
                 out.append(stack.pop())
-            stack.pop()  
+            if stack:
+                stack.pop() 
 
         elif char == '*':
             out.append(char)
 
-        else:
+        else:  
             while stack and stack[-1] != '(' and getPrecedence(char) <= getPrecedence(stack[-1]):
                 out.append(stack.pop())
             stack.append(char)
@@ -97,7 +109,6 @@ def convert(regex: str) -> List[str]:
         out.append(stack.pop())
 
     return out
-
 
 
 def generate(postfix: List[str], alphabet: Set[str] = {'0', '1'}) -> Automata:
@@ -188,7 +199,6 @@ def generate(postfix: List[str], alphabet: Set[str] = {'0', '1'}) -> Automata:
     return Automata(states, transitions, end, start, alphabet)
 
 
-
 if __name__ == "__main__":
     test_cases = [
         "10",           
@@ -200,7 +210,8 @@ if __name__ == "__main__":
         "abc",          
         "1.0*",
         "{{7*       7}}",
-        "(2*(2+1)*)**"
+        "(2*(2+1)*)**",
+        "(2*(1+0)*)*"   
     ]
     
     for regex in test_cases:
@@ -216,3 +227,4 @@ if __name__ == "__main__":
         for s in sorted(nfa.transitions.keys()):
             trans = nfa.transitions[s]
             print(f"  {s}: {trans}")
+            
